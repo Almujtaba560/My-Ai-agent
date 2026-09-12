@@ -25,4 +25,4 @@ demo = gr.Interface(
     description="وكيل لتحويل النص إلى فيديو"
 )
 
-demo.launch()
+demo.launch(share=True)
