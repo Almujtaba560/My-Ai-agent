@@ -1,6 +1,7 @@
 import gradio as gr
 import edge_tts
 import asyncio
+from moviepy.editor import ColorClip, AudioFileClip
 
 VOICES = {
     "🇺🇸 English - Female": "en-US-AriaNeural",
@@ -13,36 +14,12 @@ VOICES = {
 }
 
 async def make_voice(text, voice):
-    output = "voice.mp3"
-    communicate = edge_tts.Communicate(text, voice)
-    await communicate.save(output)
-    return output
+    await edge_tts.Communicate(text, voice).save("voice.mp3")
 
-def create_voice(text, voice_name):
+def create_video(text, voice_name):
     if not text.strip():
         return None
 
     voice = VOICES[voice_name]
-    asyncio.run(make_voice(text, voice))
-    return "voice.mp3"
 
-demo = gr.Interface(
-    fn=create_voice,
-    inputs=[
-        gr.Textbox(
-            label="Write your text",
-            lines=8,
-            placeholder="Write your story here..."
-        ),
-        gr.Dropdown(
-            choices=list(VOICES.keys()),
-            value="🇺🇸 English - Female",
-            label="Choose Voice"
-        )
-    ],
-    outputs=gr.Audio(label="Generated Voice"),
-    title="🎬 AI Text to Voice Agent",
-    description="Choose a voice and convert your text to speech."
-)
-
-demo.launch(share=True)
+    asyncio.run(make_voice
