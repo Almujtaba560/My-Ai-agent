@@ -1,10 +1,8 @@
 import gradio as gr
 import edge_tts
 import asyncio
-import requests
+import subprocess
 import os
-import urllib.parse
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
 VOICES = {
     "English Female": "en-US-AriaNeural",
@@ -14,6 +12,7 @@ VOICES = {
     "Arabic Female": "ar-SA-ZariyahNeural",
     "Arabic Male": "ar-SA-HamedNeural",
 }
+
 
 async def make_voice(text, voice):
     communicator = edge_tts.Communicate(text, voice)
@@ -25,45 +24,51 @@ def create_video(text, voice_name):
     if not text.strip():
         return None
 
-    # تقسيم النص إلى مشاهد
-    sentences = [x.strip() for x in text.split(".") if x.strip()]
+    asyncio.run(make_voice(text, VOICES[voice_name]))
 
-    if not sentences:
-        sentences = [text]
+    output = "AI_video.mp4"
 
-    # الصوت
-    voice = VOICES[voice_name]
-    asyncio.run(make_voice(text, voice))
+    command = [
+        "ffmpeg",
+        "-y",
+        "-loop", "1",
+        "-framerate", "2",
+        "-f", "lavfi",
+        "-i", "color=c=black:s=1280x720",
+        "-i", "voice.mp3",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-tune", "stillimage",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-shortest",
+        output
+    ]
 
-    audio = AudioFileClip("voice.mp3")
+    subprocess.run(command, check=True)
 
-    scene_files = []
+    return output
 
-    # إنشاء صورة لكل مشهد
-    for i, sentence in enumerate(sentences[:8]):
 
-        prompt = urllib.parse.quote(
-            "cinematic scene, realistic, beautiful, detailed, "
-            + sentence
+demo = gr.Interface(
+    fn=create_video,
+    inputs=[
+        gr.Textbox(
+            label="Write your story",
+            lines=10,
+            placeholder="Write your story here..."
+        ),
+        gr.Dropdown(
+            choices=list(VOICES.keys()),
+            value="English Female",
+            label="Choose Voice"
         )
+    ],
+    outputs=gr.Video(label="Your AI Video"),
 
-        url = (
-            "https://gen.pollinations.ai/image/"
-            + prompt
-            + "?model=flux&width=1280&height=720"
-        )
+    title="AI Text to Video Agent",
 
-        filename = f"scene_{i}.jpg"
+    description="Text → Voice → MP4 Video"
+)
 
-        response = requests.get(url, timeout=120)
-
-        if response.status_code == 200:
-            with open(filename, "wb") as f:
-                f.write(response.content)
-
-            scene_files.append(filename)
-
-    if not scene_files:
-        return None
-
-    #
+demo.launch(share=True)
