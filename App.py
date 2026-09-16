@@ -1,28 +1,31 @@
-import os
 import gradio as gr
+import edge_tts
+import asyncio
+import os
+
+async def make_voice(text):
+    output = "voice.mp3"
+    communicate = edge_tts.Communicate(text, "en-US-AriaNeural")
+    await communicate.save(output)
+    return output
 
 def create_video(text):
     if not text.strip():
-        return "❌ اكتب النص أولاً."
+        return None
 
-    return f"""✅ تم استلام النص بنجاح!
-
-النص:
-{text}
-
-الخطوة التالية: سيتم تحويل النص إلى مشاهد وصوت وفيديو.
-"""
+    asyncio.run(make_voice(text))
+    return "voice.mp3"
 
 demo = gr.Interface(
     fn=create_video,
     inputs=gr.Textbox(
-        label="اكتب النص الذي تريد تحويله إلى فيديو",
+        label="Write your text",
         lines=8,
-        placeholder="اكتب قصتك هنا..."
+        placeholder="Write your story here..."
     ),
-    outputs=gr.Textbox(label="النتيجة"),
+    outputs=gr.Audio(label="Generated Voice"),
     title="🎬 AI Text to Video Agent",
-    description="وكيل لتحويل النص إلى فيديو"
+    description="Text → AI Voice"
 )
 
 demo.launch(share=True)
