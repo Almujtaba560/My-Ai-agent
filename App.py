@@ -1,7 +1,10 @@
 import gradio as gr
 import edge_tts
 import asyncio
-from moviepy.editor import ColorClip, AudioFileClip
+import requests
+import os
+import urllib.parse
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
 VOICES = {
     "English Female": "en-US-AriaNeural",
@@ -16,55 +19,51 @@ async def make_voice(text, voice):
     communicator = edge_tts.Communicate(text, voice)
     await communicator.save("voice.mp3")
 
+
 def create_video(text, voice_name):
+
     if not text.strip():
         return None
 
+    # تقسيم النص إلى مشاهد
+    sentences = [x.strip() for x in text.split(".") if x.strip()]
+
+    if not sentences:
+        sentences = [text]
+
+    # الصوت
     voice = VOICES[voice_name]
     asyncio.run(make_voice(text, voice))
 
     audio = AudioFileClip("voice.mp3")
-    duration = audio.duration
 
-    video = ColorClip(
-        size=(1280, 720),
-        color=(20, 20, 20),
-        duration=duration
-    )
+    scene_files = []
 
-    video = video.set_audio(audio)
+    # إنشاء صورة لكل مشهد
+    for i, sentence in enumerate(sentences[:8]):
 
-    output = "video.mp4"
-
-    video.write_videofile(
-        output,
-        fps=24,
-        codec="libx264",
-        audio_codec="aac"
-    )
-
-    video.close()
-    audio.close()
-
-    return output
-
-demo = gr.Interface(
-    fn=create_video,
-    inputs=[
-        gr.Textbox(
-            label="Write your text",
-            lines=8,
-            placeholder="Write your story here..."
-        ),
-        gr.Dropdown(
-            choices=list(VOICES.keys()),
-            value="English Female",
-            label="Choose Voice"
+        prompt = urllib.parse.quote(
+            "cinematic scene, realistic, beautiful, detailed, "
+            + sentence
         )
-    ],
-    outputs=gr.Video(label="Generated Video"),
-    title="AI Text to Video Agent",
-    description="Text → Voice → MP4 Video"
-)
 
-demo.launch(share=True)
+        url = (
+            "https://gen.pollinations.ai/image/"
+            + prompt
+            + "?model=flux&width=1280&height=720"
+        )
+
+        filename = f"scene_{i}.jpg"
+
+        response = requests.get(url, timeout=120)
+
+        if response.status_code == 200:
+            with open(filename, "wb") as f:
+                f.write(response.content)
+
+            scene_files.append(filename)
+
+    if not scene_files:
+        return None
+
+    #
